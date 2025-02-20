@@ -1,0 +1,31 @@
+- name: Create Share Directory
+  ansible.builtin.file:
+    path: "{{ storage_dir }}"
+    state: directory
+
+- name: Install Transmission
+  ansible.builtin.package:
+    name: 
+      - transmission-cli
+    state: present
+
+- name: Install NFS
+  ansible.builtin.package:
+    name:
+      - nfs-kernel-server
+    state: present
+
+- name: Config NFS
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check)"
+  loop: "{{ nfs_whitelist }}"
+
+- name: Export NFS Shares
+  ansible.builtin.shell:
+    cmd: exportfs -a
+
+- name: Restart NFS
+  ansible.builtin.systemd_service:
+    name: nfs-server
+    state: restarted

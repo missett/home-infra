@@ -1,0 +1,64 @@
+- name: Create Directories
+  ansible.builtin.file:
+    path: /etc/amazon/ssm
+    state: directory
+
+- name: Add Config
+  ansible.builtin.template:
+    src: amazon-ssm-agent.json
+    dest: /etc/amazon/ssm/amazon-ssm-agent.json
+
+- name: Add Logger
+  ansible.builtin.template:
+    src: seelog.xml
+    dest: /etc/amazon/ssm/seelog.xml
+
+- name: Install AWS Deps
+  ansible.builtin.package:
+    name:
+      - python3-boto3
+      - python3-botocore
+    state: present
+
+- name: Install SSM Agent
+  community.general.snap:
+    name: amazon-ssm-agent
+    classic: true
+
+- name: Get SSM Status
+  ansible.builtin.shell:
+    cmd: amazon-ssm-agent.ssm-cli get-diagnostics 2>/dev/null | grep -v 'Applying config override'
+  register: ssm_status
+
+- name: Instance Registration Status
+  ansible.builtin.set_fact:
+    instance_registered: "{{ (ssm_status.stdout | from_json | json_query('DiagnosticsOutput[?Check == `Hybrid instance registration`].Status') | first) == 'Success' }}"
+
+- name: Stop SSM Agent
+  ansible.builtin.systemd_service:
+    name: snap.amazon-ssm-agent.amazon-ssm-agent.service
+    state: stopped
+  when: not instance_registered
+
+- name: Assume Credentials
+  amazon.aws.sts_assume_role:
+    access_key: "{{ aws_access_key }}"
+    secret_key: "{{ aws_secret_key }}"
+    role_arn: "arn:aws:iam::{{ aws_account }}:role/ssm-activation"
+    role_session_name: "activate-{{ inventory_hostname }}"
+  register: assumed_role
+  when: not instance_registered
+
+- name: Register
+  ansible.builtin.shell:
+    cmd: |
+      /snap/amazon-ssm-agent/current/amazon-ssm-agent -register \
+        -code "{{ lookup('aws_ssm', activation_code_ssm, region='eu-west-2', aws_access_key=assumed_role.sts_creds.access_key, aws_secret_key=assumed_role.sts_creds.secret_key, aws_security_token=assumed_role.sts_creds.session_token) }}" \
+        -id "{{ lookup('aws_ssm', activation_id_ssm, region='eu-west-2', aws_access_key=assumed_role.sts_creds.access_key, aws_secret_key=assumed_role.sts_creds.secret_key, aws_security_token=assumed_role.sts_creds.session_token) }}" \
+        -region "eu-west-2"
+  when: not instance_registered
+
+- name: Restart SSM Agent
+  ansible.builtin.systemd_service:
+    name: snap.amazon-ssm-agent.amazon-ssm-agent.service
+    state: restarted

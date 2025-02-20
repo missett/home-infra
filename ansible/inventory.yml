@@ -1,0 +1,18 @@
+home:
+  hosts:
+    ubuntuvm:
+      activation_code_ssm: "/home-infra/instance/activation/ubuntuvm/code"
+      activation_id_ssm: "/home-infra/instance/activation/ubuntuvm/id"
+    macbookair:
+      activation_code_ssm: "/home-infra/instance/activation/macbookair/code"
+      activation_id_ssm: "/home-infra/instance/activation/macbookair/id"
+torrenters:
+  hosts:
+    ubuntuvm:
+      storage_dir: /tmp/share
+      nfs_whitelist: 
+        - 192.168.64.0/24
+    macbookair:
+      storage_dir: /mnt/share
+      nfs_whitelist: 
+        - 192.168.0.0/24

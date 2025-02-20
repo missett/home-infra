@@ -1,0 +1,12 @@
+---
+- name: Master Playbook - SSM Hosts
+  connection: local
+  hosts: all
+  roles:
+    - ssm-host
+  tasks: []
+- name: Master Playbook - Torrenters
+  connection: local
+  hosts: torrenters
+  roles:
+    - torrenter
