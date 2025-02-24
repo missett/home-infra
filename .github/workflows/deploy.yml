@@ -1,0 +1,39 @@
+name: Deploy
+run-name: Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        type: boolean
+        required: true
+        default: false
+        description: TF Apply?
+      mfa_code:
+        type: string
+        required: true
+        description: MFA Code
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env: 
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: deploy
+        run: |
+          tf_mfa_code=${{ github.event.inputs.mfa_code }} tf_account=${{ env.AWS_ACCOUNT_ID }} ${{ github.event.inputs.apply == 'true' && 'make terraform/instance-management/apply' || 'make terraform/instance-management/plan' }}
