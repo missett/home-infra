@@ -18,7 +18,7 @@
 - name: Config NFS
   ansible.builtin.lineinfile:
     path: /etc/exports
-    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check)"
+    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,insecure)"
   loop: "{{ nfs_whitelist }}"
 
 - name: Export NFS Shares
