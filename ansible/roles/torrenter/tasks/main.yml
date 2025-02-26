@@ -2,6 +2,10 @@
   ansible.builtin.file:
     path: "{{ storage_dir }}"
     state: directory
+    owner: root
+    group: root
+    mode: 'u=rw,g=rw,o=r'
+    recurse: true
 
 - name: Install Transmission
   ansible.builtin.package:
@@ -18,7 +22,7 @@
 - name: Config NFS
   ansible.builtin.lineinfile:
     path: /etc/exports
-    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,insecure)"
+    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,all_squash,insecure,anonuid=0,anongid=0)"
   loop: "{{ nfs_whitelist }}"
 
 - name: Export NFS Shares
@@ -28,4 +32,27 @@
 - name: Restart NFS
   ansible.builtin.systemd_service:
     name: nfs-server
+    state: restarted
+      
+- name: Install Samba
+  ansible.builtin.package:
+    name: 
+      - samba
+    state: present
+
+- name: Configure Samba
+  ansible.builtin.blockinfile:
+    dest: /etc/samba/smb.conf
+    content: |
+      [macbookair]
+        comment = share the share directory
+        path = {{ storage_dir }}
+        read only = yes
+        browsable = yes
+        guest ok = yes
+        force user = ryanmissett
+
+- name: Restart Samba
+  ansible.builtin.systemd_service:
+    name: samba
     state: restarted
