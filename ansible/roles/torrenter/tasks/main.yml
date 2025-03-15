@@ -1,10 +1,26 @@
+- name: Create Torrent Group
+  ansible.builtin.group:
+    name: torrent
+    gid: 123
+    state: present
+
+- name: Create Torrent User
+  ansible.builtin.user:
+    name: torrent
+    uid: 123
+    group: torrent
+    state: present
+    create_home: false
+    home: "{{ storage_dir }}"
+    shell: /usr/bin/false
+
 - name: Create Share Directory
   ansible.builtin.file:
     path: "{{ storage_dir }}"
     state: directory
-    owner: root
-    group: root
-    mode: 'u=rw,g=rw,o=r'
+    owner: torrent
+    group: torrent
+    mode: 'u=rwx,g=rx,o=rx'
     recurse: true
 
 - name: Install Transmission
@@ -22,7 +38,7 @@
 - name: Config NFS
   ansible.builtin.lineinfile:
     path: /etc/exports
-    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,all_squash,insecure,anonuid=0,anongid=0)"
+    line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,all_squash,insecure,anonuid=123,anongid=123)"
   loop: "{{ nfs_whitelist }}"
 
 - name: Export NFS Shares
@@ -44,13 +60,22 @@
   ansible.builtin.blockinfile:
     dest: /etc/samba/smb.conf
     content: |
-      [macbookair]
+      [global]
+        map to guest = Bad User
+        guest account = torrent
+        security = user
+        log level = 1
+
+        idmap config * : backend = tdb
+        idmap config * : range = 123-123
+      [share]
         comment = share the share directory
         path = {{ storage_dir }}
         read only = yes
         browsable = yes
         guest ok = yes
-        force user = ryanmissett
+        force user = torrent
+        force group = torrent
 
 - name: Restart Samba
   ansible.builtin.systemd_service:

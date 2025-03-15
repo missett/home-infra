@@ -10,3 +10,4 @@
   hosts: torrenters
   roles:
     - torrenter
+    - media-server

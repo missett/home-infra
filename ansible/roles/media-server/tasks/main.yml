@@ -1,0 +1,121 @@
+- name: Add Gerbera Key
+  ansible.builtin.get_url:
+    url: https://pkg.gerbera.io/public.asc
+    dest: /etc/apt/keyrings/gerbera-keyring.asc
+
+- name: Add Gerbera Repo
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/keyrings/gerbera-keyring.asc] https://pkg.gerbera.io/debian/ noble main
+    state: present
+
+- name: Install Gerbera
+  ansible.builtin.package:
+    name: 
+      - gerbera
+    state: present
+
+- name: Create Gerbera User
+  ansible.builtin.user:
+    name: gerbera
+    state: present
+    create_home: true
+    home: /var/lib/gerbera
+    shell: /usr/bin/false
+    system: true
+
+- name: Config Gerbera
+  ansible.builtin.copy:
+    src: config.xml
+    dest: /etc/gerbera/config.xml
+    owner: gerbera
+    mode: "u=rw,g=rw"
+
+- name: Start Gerbera Service
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    name: gerbera
+    state: restarted
+
+# - name: Create Torrent Group
+#   ansible.builtin.group:
+#     name: torrent
+#     gid: 123
+#     state: present
+# 
+# - name: Create Torrent User
+#   ansible.builtin.user:
+#     name: torrent
+#     uid: 123
+#     group: torrent
+#     state: present
+#     create_home: false
+#     home: "{{ storage_dir }}"
+#     shell: /usr/bin/false
+# 
+# - name: Create Share Directory
+#   ansible.builtin.file:
+#     path: "{{ storage_dir }}"
+#     state: directory
+#     owner: torrent
+#     group: torrent
+#     mode: 'u=rwx,g=rx,o=rx'
+#     recurse: true
+# 
+# - name: Install Transmission
+#   ansible.builtin.package:
+#     name: 
+#       - transmission-cli
+#     state: present
+# 
+# - name: Install NFS
+#   ansible.builtin.package:
+#     name:
+#       - nfs-kernel-server
+#     state: present
+# 
+# - name: Config NFS
+#   ansible.builtin.lineinfile:
+#     path: /etc/exports
+#     line: "{{ storage_dir }} {{ item }}(ro,sync,subtree_check,all_squash,insecure,anonuid=123,anongid=123)"
+#   loop: "{{ nfs_whitelist }}"
+# 
+# - name: Export NFS Shares
+#   ansible.builtin.shell:
+#     cmd: exportfs -a
+# 
+# - name: Restart NFS
+#   ansible.builtin.systemd_service:
+#     name: nfs-server
+#     state: restarted
+#       
+# - name: Install Samba
+#   ansible.builtin.package:
+#     name: 
+#       - samba
+#     state: present
+# 
+# - name: Configure Samba
+#   ansible.builtin.blockinfile:
+#     dest: /etc/samba/smb.conf
+#     content: |
+#       [global]
+#         map to guest = Bad User
+#         guest account = torrent
+#         security = user
+#         log level = 1
+# 
+#         idmap config * : backend = tdb
+#         idmap config * : range = 123-123
+#       [share]
+#         comment = share the share directory
+#         path = {{ storage_dir }}
+#         read only = yes
+#         browsable = yes
+#         guest ok = yes
+#         force user = torrent
+#         force group = torrent
+# 
+# - name: Restart Samba
+#   ansible.builtin.systemd_service:
+#     name: samba
+#     state: restarted
